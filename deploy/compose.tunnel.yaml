@@ -1,0 +1,15 @@
+# Optional override: attaches the dashboard to the EXISTING Cloudflare tunnel network so the
+# cloudflared container can reach it by name (http://hlcc-dashboard:8787). Nothing else changes: the
+# host port stays on 127.0.0.1 and the Docker proxy stays on its internal network.
+#
+# Enabled by HLCC_TUNNEL_NETWORK=true in the env file (scripts/hlcc-deploy.sh adds this file).
+# The network belongs to the existing stack and is never created or removed from here.
+services:
+  hlcc:
+    networks:
+      cloudflare-proxy:
+        aliases: [hlcc-dashboard]
+
+networks:
+  cloudflare-proxy:
+    external: true

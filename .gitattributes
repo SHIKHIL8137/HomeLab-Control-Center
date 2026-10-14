@@ -1,2 +1,5 @@
 # Shell scripts run on Linux: never let a Windows checkout turn them into CRLF.
 *.sh text eol=lf
+# Everything else is stored and checked out with LF too, so Windows (autocrlf) never makes
+# Prettier, hashes of release archives or Docker builds disagree with CI.
+* text=auto eol=lf
