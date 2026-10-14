@@ -1,6 +1,6 @@
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { loadConfig } from '../src/config.ts';
 import { createNetdataAdapter } from '../src/providers/netdata.ts';
 import { ProviderUnavailableError } from '../src/providers/types.ts';
@@ -145,7 +145,10 @@ describe('netdata adapter', () => {
       (_u, res) => (res.writeHead(302, { location: 'http://169.254.169.254/' }).end(), true),
     );
     await rejects(createNetdataAdapter({ baseUrl: n.url })(), /Netdata unavailable/);
-    expect(n.seen).toHaveLength(2); // the two chart queries; the redirect target was never contacted
+    // The two chart queries run in parallel and the first failure rejects the call, so the second
+    // may still be in flight: wait for it, then check only the Netdata server was ever contacted.
+    await vi.waitFor(() => expect(n.seen).toHaveLength(2));
+    expect(n.seen.every((r) => r.url.startsWith('/api/v1/data'))).toBe(true);
   });
 
   it('reports a refused connection', async () => {

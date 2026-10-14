@@ -342,10 +342,25 @@ describe('preflight catches configuration mistakes', () => {
 
 describe('preflight without the docker CLI', () => {
   // The real PATH minus any directory that holds a docker executable, so git and node still work.
+  // On Linux docker and git share /usr/bin, so dropping docker's directory would drop git too and the
+  // preflight's secret scan could not run; a one-line shim keeps git reachable.
+  const gitShimDir = (): string => {
+    if (process.platform === 'win32') return '';
+    const real = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
+    const dir = mkdtempSync(join(tmpdir(), 'hlcc-gitshim-'));
+    writeFileSync(join(dir, 'git'), `#!/bin/sh\nexec "${real}" "$@"\n`);
+    chmodSync(join(dir, 'git'), 0o755);
+    return dir;
+  };
+  const shim = gitShimDir();
   const withoutDocker = (path: string) =>
-    path
-      .split(delimiter)
-      .filter((d) => d && !existsSync(join(d, 'docker')) && !existsSync(join(d, 'docker.exe')))
+    [
+      shim,
+      ...path
+        .split(delimiter)
+        .filter((d) => d && !existsSync(join(d, 'docker')) && !existsSync(join(d, 'docker.exe'))),
+    ]
+      .filter(Boolean)
       .join(delimiter);
   const noDockerEnv = (v: ReturnType<typeof validEnv>) => {
     const pathKey = Object.keys(process.env).find((k) => k.toLowerCase() === 'path') ?? 'PATH';
