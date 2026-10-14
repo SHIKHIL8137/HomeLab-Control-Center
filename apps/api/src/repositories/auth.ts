@@ -67,3 +67,7 @@ export function deleteSession(db: Db, token: string): void {
 export function purgeExpiredSessions(db: Db, now: number): void {
   db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(now);
 }
+
+export function updatePasswordHash(db: Db, userId: number, passwordHash: string): void {
+  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, userId);
+}

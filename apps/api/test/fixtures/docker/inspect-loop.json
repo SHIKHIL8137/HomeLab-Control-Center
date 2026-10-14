@@ -1,0 +1,24 @@
+{
+  "Id": "b57bc515b2f3912f5e099bc3ba2a6868096ec0d264f7fada97352052a6a4cccc",
+  "Name": "/hlcc-p3-loop",
+  "Created": "2026-10-14T08:24:03.351375829Z",
+  "Image": "redis:7-alpine",
+  "RestartCount": 4,
+  "State": {
+    "Status": "exited",
+    "Running": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "ExitCode": 1,
+    "StartedAt": "2026-10-14T08:24:06.362434092Z",
+    "FinishedAt": "2026-10-14T08:24:06.554944363Z"
+  },
+  "HostConfig": {
+    "Memory": 0,
+    "RestartPolicy": {
+      "Name": "on-failure",
+      "MaximumRetryCount": 4
+    }
+  },
+  "Labels": {}
+}

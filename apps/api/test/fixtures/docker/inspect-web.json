@@ -1,0 +1,28 @@
+{
+  "Id": "7be74bc789690bf27a724339b9e45a3abfa9af94f30eed800b82a656e5d7e0f1",
+  "Name": "/hlcc-p3-web",
+  "Created": "2026-10-14T08:24:01.827962694Z",
+  "Image": "redis:7-alpine",
+  "RestartCount": 0,
+  "State": {
+    "Status": "running",
+    "Running": true,
+    "Restarting": false,
+    "OOMKilled": false,
+    "ExitCode": 0,
+    "StartedAt": "2026-10-14T08:24:02.04404899Z",
+    "FinishedAt": "0001-01-01T00:00:00Z",
+    "Health": {
+      "Status": "healthy",
+      "FailingStreak": 0
+    }
+  },
+  "HostConfig": {
+    "Memory": 134217728,
+    "RestartPolicy": {
+      "Name": "no",
+      "MaximumRetryCount": 0
+    }
+  },
+  "Labels": {}
+}

@@ -11,6 +11,8 @@ permissions:
 jobs:
   check:
     # GitHub-hosted runner on purpose: never run this repository's code on the home server's runner.
+    # This is a Linux runner, so the Linux-only tests (real /proc parsing, SIGTERM shutdown, file
+    # modes) run here even though they are skipped on a Windows developer machine.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,4 +27,53 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm run scan
-      - run: npm audit --audit-level=high
+      - name: Dependency audit (production dependencies, high and above)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Dependency audit (everything, high and above)
+        run: npm audit --audit-level=high
+
+  deployment:
+    # Proves the deployment files stay valid: images build, the production compose file renders with
+    # its required settings, and the preflight's structural checks pass. Uses throwaway secrets.
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Build both images from the pinned base
+        run: |
+          docker build -f deploy/Dockerfile --target api   -t hlcc-ci:api .
+          docker build -f deploy/Dockerfile --target proxy -t hlcc-ci:proxy .
+      - name: Images run as a non-root user and define healthchecks
+        run: |
+          for t in api proxy; do
+            test "$(docker image inspect hlcc-ci:$t --format '{{.Config.User}}')" = node
+            test "$(docker image inspect hlcc-ci:$t --format '{{json .Config.Healthcheck.Test}}')" != null
+          done
+      - name: Local demo compose file renders
+        run: docker compose -f deploy/compose.local.yaml config --quiet
+      - name: Production compose refuses to render without its required settings
+        run: |
+          if docker compose -f deploy/compose.yaml config --quiet 2>/dev/null; then
+            echo "production compose rendered with no configuration" >&2; exit 1
+          fi
+      - name: Preflight with throwaway secrets and placeholder paths
+        run: |
+          d="$RUNNER_TEMP/pre"; mkdir -p "$d"
+          node -e "const c=require('crypto'),fs=require('fs');for(const [f,n] of [['docker',32],['setup',24]]) fs.writeFileSync(process.argv[1]+'/'+f,c.randomBytes(n).toString('base64url'),{mode:0o400})" "$d"
+          cat > "$d/ci.env" <<EOF
+          DOCKER_GID=999
+          HLCC_SECRET_DOCKER_TOKEN_FILE=$d/docker
+          HLCC_SECRET_SETUP_TOKEN_FILE=$d/setup
+          HLCC_DATA_PATH=/srv/ci/data
+          HLCC_PROBE_ROOT=/srv/ci/probe-root
+          HLCC_PROBE_STORAGE=/srv/storage/ci/probe
+          HLCC_DISKS=[{"label":"/","path":"/probe/root"},{"label":"/srv/storage","path":"/probe/storage","separate":true}]
+          HLCC_TRUST_PROXY=1
+          EOF
+          node scripts/preflight.mjs --env-file "$d/ci.env"

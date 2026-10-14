@@ -17,10 +17,12 @@ import {
   createSession,
   deleteSession,
   getUserByUsername,
+  updatePasswordHash,
   userCount,
 } from '../repositories/auth.ts';
 import { recordAudit } from '../repositories/audit.ts';
 import {
+  needsRehash,
   PASSWORD_MAX,
   PASSWORD_MIN,
   dummyHash,
@@ -43,6 +45,12 @@ const loginBody = z.object({
   username: z.string().min(1).max(64),
   password: z.string().min(1).max(PASSWORD_MAX),
 });
+
+/**
+ * The audit trail records what the server established, not what a client claims: failed attempts are
+ * attributed to "anonymous" and the submitted name is kept only as a clearly labelled, cleaned detail.
+ */
+const attempted = (name: string) => name.replace(/[^ -~]/g, '?').slice(0, 64);
 
 const tokenMatches = (given: string, expected: string) =>
   given.length === expected.length && timingSafeEqual(Buffer.from(given), Buffer.from(expected));
@@ -97,6 +105,7 @@ export function authRouter(ctx: Ctx): Router {
     if (userId === null)
       return sendError(res, 409, 'already_configured', 'Setup already completed');
     startSession(res, userId);
+    ctx.onSetupComplete?.();
     audit({ actor: body.username, action: 'auth.setup', outcome: 'success', ip: req.ip });
     res.status(201).json({ ok: true });
   });
@@ -107,11 +116,11 @@ export function authRouter(ctx: Ctx): Router {
     if (!ctx.limiter.allowed(key)) {
       res.setHeader('Retry-After', ctx.limiter.retryAfterSeconds(key));
       audit({
-        actor: body.username,
+        actor: 'anonymous',
         action: 'auth.login',
         outcome: 'denied',
         ip: req.ip,
-        detail: { reason: 'rate_limited' },
+        detail: { reason: 'rate_limited', attemptedUser: attempted(body.username) },
       });
       return sendError(res, 429, 'rate_limited', 'Too many attempts, try again later');
     }
@@ -119,10 +128,22 @@ export function authRouter(ctx: Ctx): Router {
     const ok = await verifyPassword(body.password, user?.password_hash ?? (await dummyHash()));
     if (!user || !ok) {
       ctx.limiter.fail(key);
-      audit({ actor: body.username, action: 'auth.login', outcome: 'failure', ip: req.ip });
+      audit({
+        actor: 'anonymous',
+        action: 'auth.login',
+        outcome: 'failure',
+        ip: req.ip,
+        detail: { attemptedUser: attempted(body.username) },
+      });
       return sendError(res, 401, 'invalid_credentials', 'Invalid username or password');
     }
     ctx.limiter.reset(key);
+    // Never reuse a session across a login, and quietly upgrade an older hash to the current cost.
+    const previous = readCookie(req.headers.cookie, SESSION_COOKIE);
+    if (previous) deleteSession(ctx.db, previous);
+    if (needsRehash(user.password_hash)) {
+      updatePasswordHash(ctx.db, user.id, await hashPassword(body.password));
+    }
     startSession(res, user.id);
     audit({ actor: user.username, action: 'auth.login', outcome: 'success', ip: req.ip });
     res.json({ ok: true });

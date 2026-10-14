@@ -1,0 +1,17 @@
+{
+  "read": "2026-10-14T08:24:40.085548917Z",
+  "cpu_stats": {
+    "cpu_usage": {
+      "total_usage": 644945000
+    },
+    "system_cpu_usage": 537840000000,
+    "online_cpus": 4
+  },
+  "memory_stats": {
+    "usage": 3977216,
+    "limit": 134217728,
+    "stats": {
+      "inactive_file": 0
+    }
+  }
+}

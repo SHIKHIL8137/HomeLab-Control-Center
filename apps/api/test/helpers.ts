@@ -1,6 +1,7 @@
 import { pino } from 'pino';
 import request from 'supertest';
 import { createApp } from '../src/app.ts';
+import type { Ctx } from '../src/context.ts';
 import { loadConfig } from '../src/config.ts';
 import { migrate, openDb } from '../src/db.ts';
 import { createMockProvider } from '../src/providers/mock.ts';
@@ -8,12 +9,15 @@ import type { Provider } from '../src/providers/types.ts';
 import { insertProject } from '../src/repositories/projects.ts';
 import { FailureLimiter } from '../src/security/rateLimit.ts';
 import { Collector } from '../src/services/collector.ts';
+import { HealthChecker, mockFetcher, type Fetcher } from '../src/services/healthChecker.ts';
 import { SEED_PROJECTS } from '../src/seed/projects.ts';
 
 export const SETUP_TOKEN = 'test-setup-token-123456';
 export const PASSWORD = 'correct horse battery';
 
-export function makeApp(opts: { provider?: Provider; env?: Record<string, string> } = {}) {
+export function makeApp(
+  opts: { provider?: Provider; env?: Record<string, string>; fetcher?: Fetcher } = {},
+) {
   const time = { t: Date.UTC(2026, 9, 14, 12, 0, 0) };
   const clock = () => time.t;
   const cfg = loadConfig({
@@ -35,17 +39,29 @@ export function makeApp(opts: { provider?: Provider; env?: Record<string, string
     pollIntervalMs: cfg.pollIntervalMs,
     retentionMs: cfg.retentionMs,
   });
-  const ctx = {
+  const checker = new HealthChecker({
+    db,
+    clock,
+    log,
+    source: provider.source,
+    fetcher: opts.fetcher ?? mockFetcher(),
+    intervalMs: cfg.healthIntervalMs,
+    retentionMs: cfg.retentionMs,
+    concurrency: cfg.healthConcurrency,
+    notify: () => collector.emit('update'),
+  });
+  const ctx: Ctx = {
     cfg,
     db,
     clock,
     log,
     provider,
     collector,
+    checker,
     setupToken: SETUP_TOKEN,
     limiter: new FailureLimiter(5, 15 * 60_000, clock),
   };
-  return { app: createApp(ctx), ctx, time, collector, db };
+  return { app: createApp(ctx), ctx, time, collector, checker, db };
 }
 
 /** Completes first-run setup and returns an agent holding the session cookie plus its CSRF token. */

@@ -52,8 +52,14 @@ const safeEqual = (a: string, b: string) =>
 /** Rejects cross-origin browser writes. Requests without an Origin header (curl, tests) rely on SameSite cookies. */
 export function originGuard(ctx: Ctx) {
   return (req: Request, res: Response, next: NextFunction) => {
+    if (SAFE_METHODS.has(req.method)) return next();
+    // Browsers state where a request came from; a cross-site write is refused even without an Origin.
+    const site = req.headers['sec-fetch-site'];
+    if (typeof site === 'string' && site !== 'same-origin' && site !== 'none') {
+      return sendError(res, 403, 'origin_not_allowed', 'Cross-site request rejected');
+    }
     const origin = req.headers.origin;
-    if (SAFE_METHODS.has(req.method) || !origin) return next();
+    if (!origin) return next();
     const allowed = [`${req.protocol}://${req.get('host')}`, ...ctx.cfg.allowedOrigins];
     if (allowed.includes(origin)) return next();
     sendError(res, 403, 'origin_not_allowed', 'Cross-origin request rejected');

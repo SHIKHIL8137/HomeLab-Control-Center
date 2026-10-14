@@ -1,12 +1,140 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import type { Project } from '@hlcc/shared';
+import type { Project, ProjectView } from '@hlcc/shared';
 import { useProject } from '../hooks';
 import { api, ApiRequestError } from '../lib/api';
 import { formatBytes, percent } from '../lib/format';
-import { Card, FreshnessBadge, HealthBadge, Notice, PageHeader, Spinner } from '../components/ui';
+import {
+  Card,
+  FreshnessBadge,
+  HealthBadge,
+  HttpCheckPill,
+  Notice,
+  PageHeader,
+  Spinner,
+} from '../components/ui';
+import { timeAgo } from '../lib/format';
 import { StateCell } from './Containers';
+
+/** Configure and inspect the HTTP check. The server validates the URL again on every request. */
+export function HealthCheckCard({
+  p,
+  onChanged,
+}: {
+  p: ProjectView;
+  onChanged: () => Promise<void>;
+}) {
+  const [url, setUrl] = useState(p.healthUrl ?? '');
+  const [allowPrivate, setAllowPrivate] = useState(p.healthAllowPrivate);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const c = p.httpCheck;
+
+  const save = async () => {
+    setMsg(null);
+    try {
+      await api(`/projects/${p.id}`, {
+        method: 'PATCH',
+        body: {
+          healthUrl: url.trim() === '' ? null : url.trim(),
+          healthAllowPrivate: allowPrivate,
+        },
+      });
+      await onChanged();
+      setMsg({
+        ok: true,
+        text: url.trim() ? 'Saved. The first check runs now.' : 'Health check removed.',
+      });
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof ApiRequestError ? e.message : 'Could not save' });
+    }
+  };
+
+  return (
+    <Card title="HTTP health check" right={<HttpCheckPill check={c} />}>
+      {c.state !== 'not_configured' && (
+        <dl className="mb-3 grid grid-cols-2 gap-2 text-sm">
+          <div>
+            <dt className="text-muted">Last status</dt>
+            <dd>{c.statusCode ?? '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">Latency</dt>
+            <dd>{c.latencyMs === null ? '—' : `${c.latencyMs} ms`}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">Consecutive failures</dt>
+            <dd>{c.consecutiveFailures}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">Target</dt>
+            <dd>{c.targetClass ?? '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">Last success</dt>
+            <dd>{timeAgo(c.lastSuccessAt)}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">Last failure</dt>
+            <dd>{timeAgo(c.lastFailureAt)}</dd>
+          </div>
+          {c.error && (
+            <div className="col-span-2">
+              <dt className="text-muted">Last error</dt>
+              <dd className="text-bad">{c.error}</dd>
+            </div>
+          )}
+        </dl>
+      )}
+      <label htmlFor="healthUrl" className="mb-1 block text-sm font-medium">
+        Health URL
+      </label>
+      <input
+        id="healthUrl"
+        value={url}
+        onChange={(e) => setUrl(e.target.value)}
+        placeholder="Not set. Leave empty for no check"
+        className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm"
+        autoComplete="off"
+        spellCheck={false}
+      />
+      <p className="mt-1 text-xs text-muted">
+        http or https, no credentials. Query strings may carry tokens, so avoid putting secrets in
+        the URL.
+      </p>
+      <label className="mt-3 flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={allowPrivate}
+          onChange={(e) => setAllowPrivate(e.target.checked)}
+          className="mt-1"
+        />
+        <span>
+          Allow a private address for this project (LAN, Tailscale, loopback)
+          <span className="block text-xs text-muted">
+            Off by default. Link-local and cloud-metadata addresses are never allowed, and a
+            redirect can never move to another private host. Turning this on is recorded in the
+            audit log.
+          </span>
+        </span>
+      </label>
+      <button
+        onClick={() => void save()}
+        className="mt-3 rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-on-accent"
+      >
+        Save
+      </button>
+      {msg && (
+        <p
+          role={msg.ok ? 'status' : 'alert'}
+          className={msg.ok ? 'mt-2 text-xs' : 'mt-2 text-xs text-bad'}
+        >
+          {msg.text}
+        </p>
+      )}
+    </Card>
+  );
+}
 
 export default function ProjectDetail() {
   const { id = '' } = useParams();
@@ -84,7 +212,9 @@ export default function ProjectDetail() {
             </div>
             <div>
               <dt className="text-muted">HTTP health check</dt>
-              <dd>{p.healthCheck.reason}</dd>
+              <dd>
+                <HttpCheckPill check={p.httpCheck} />
+              </dd>
             </div>
             <div>
               <dt className="text-muted">Capabilities</dt>
@@ -159,6 +289,13 @@ export default function ProjectDetail() {
             </div>
           )}
         </Card>
+        <div className="lg:col-span-3">
+          <HealthCheckCard
+            key={`${p.healthUrl}|${p.healthAllowPrivate}`}
+            p={p}
+            onChanged={() => qc.invalidateQueries()}
+          />
+        </div>
       </div>
     </>
   );

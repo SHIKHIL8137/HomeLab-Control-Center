@@ -6,11 +6,13 @@ export class FailureLimiter {
   private readonly max: number;
   private readonly windowMs: number;
   private readonly clock: Clock;
+  private readonly maxKeys: number;
 
-  constructor(max: number, windowMs: number, clock: Clock) {
+  constructor(max: number, windowMs: number, clock: Clock, maxKeys = 10_000) {
     this.max = max;
     this.windowMs = windowMs;
     this.clock = clock;
+    this.maxKeys = maxKeys;
   }
 
   private recent(key: string): number[] {
@@ -26,7 +28,22 @@ export class FailureLimiter {
   }
 
   fail(key: string): void {
+    if (!this.hits.has(key) && this.hits.size >= this.maxKeys) this.evict();
     this.hits.set(key, [...this.recent(key), this.clock()]);
+  }
+
+  /** Bounded memory: many distinct addresses cannot grow the table without limit. */
+  private evict(): void {
+    for (const key of [...this.hits.keys()]) this.recent(key); // drops expired entries
+    // Still full: forget the oldest keys (insertion order) to make room.
+    for (const key of this.hits.keys()) {
+      if (this.hits.size < this.maxKeys) break;
+      this.hits.delete(key);
+    }
+  }
+
+  get size(): number {
+    return this.hits.size;
   }
 
   reset(key: string): void {

@@ -1,0 +1,13 @@
+{
+  "name": "@hlcc/docker-proxy",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Read-only, allowlisting proxy in front of the Docker socket. No dependencies.",
+  "scripts": {
+    "start": "node src/server.ts",
+    "typecheck": "tsc -p .",
+    "test": "vitest run"
+  },
+  "license": "UNLICENSED"
+}

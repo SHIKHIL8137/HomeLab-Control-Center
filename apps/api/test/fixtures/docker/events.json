@@ -1,0 +1,185 @@
+[
+  {
+    "Action": "start",
+    "time": 1791966211,
+    "timeNano": 1791966211687325200,
+    "Actor": {
+      "Attributes": {
+        "name": "hlcc-p3-proc-10651",
+        "image": "redis:7-alpine"
+      }
+    }
+  },
+  {
+    "Action": "die",
+    "time": 1791966211,
+    "timeNano": 1791966211863744000,
+    "Actor": {
+      "Attributes": {
+        "name": "hlcc-p3-proc-10651",
+        "image": "redis:7-alpine",
+        "exitCode": "0"
+      }
+    }
+  },
+  {
+    "Action": "start",
+    "time": 1791966242,
+    "timeNano": 1791966242344449800,
+    "Actor": {
+      "Attributes": {
+        "name": "hlcc-p3-web",
+        "image": "redis:7-alpine"
+      }
+    }
+  },
+  {
+    "Action": "start",
+    "time": 1791966243,
+    "timeNano": 1791966243077820200,
+    "Actor": {
+      "Attributes": {
+        "name": "hlcc-p3-exit",
+        "image": "redis:7-alpine"
+      }
+    }
+  },
+  {
+    "Action": "die",
+    "time": 1791966243,
+    "timeNano": 1791966243256900000,
+    "Actor": {
+      "Attributes": {
+        "name": "hlcc-p3-exit",
+        "image": "redis:7-alpine",
+        "exitCode": "3"
+      }
+    }
+  },
+  {
+    "Action": "start",
+    "time": 1791966243,
+    "timeNano": 1791966243842210300,
+    "Actor": {
+      "Attributes": {
+        "name": "hlcc-p3-loop",
+        "image": "redis:7-alpine"
+      }
+    }
+  },
+  {
+    "Action": "die",
+    "time": 1791966244,
+    "timeNano": 1791966244057627600,
+    "Actor": {
+      "Attributes": {
+        "name": "hlcc-p3-loop",
+        "image": "redis:7-alpine",
+        "exitCode": "1"
+      }
+    }
+  },
+  {
+    "Action": "start",
+    "time": 1791966244,
+    "timeNano": 1791966244284203500,
+    "Actor": {
+      "Attributes": {
+        "name": "hlcc-p3-loop",
+        "image": "redis:7-alpine"
+      }
+    }
+  },
+  {
+    "Action": "health_status",
+    "time": 1791966244,
+    "timeNano": 1791966244414177500,
+    "Actor": {
+      "Attributes": {
+        "name": "hlcc-p3-web",
+        "image": "redis:7-alpine"
+      }
+    }
+  },
+  {
+    "Action": "die",
+    "time": 1791966244,
+    "timeNano": 1791966244441051600,
+    "Actor": {
+      "Attributes": {
+        "name": "hlcc-p3-loop",
+        "image": "redis:7-alpine",
+        "exitCode": "1"
+      }
+    }
+  },
+  {
+    "Action": "start",
+    "time": 1791966244,
+    "timeNano": 1791966244742218000,
+    "Actor": {
+      "Attributes": {
+        "name": "hlcc-p3-loop",
+        "image": "redis:7-alpine"
+      }
+    }
+  },
+  {
+    "Action": "die",
+    "time": 1791966244,
+    "timeNano": 1791966244958588200,
+    "Actor": {
+      "Attributes": {
+        "name": "hlcc-p3-loop",
+        "image": "redis:7-alpine",
+        "exitCode": "1"
+      }
+    }
+  },
+  {
+    "Action": "start",
+    "time": 1791966245,
+    "timeNano": 1791966245398550500,
+    "Actor": {
+      "Attributes": {
+        "name": "hlcc-p3-loop",
+        "image": "redis:7-alpine"
+      }
+    }
+  },
+  {
+    "Action": "die",
+    "time": 1791966245,
+    "timeNano": 1791966245550831400,
+    "Actor": {
+      "Attributes": {
+        "name": "hlcc-p3-loop",
+        "image": "redis:7-alpine",
+        "exitCode": "1"
+      }
+    }
+  },
+  {
+    "Action": "start",
+    "time": 1791966246,
+    "timeNano": 1791966246569463600,
+    "Actor": {
+      "Attributes": {
+        "name": "hlcc-p3-loop",
+        "image": "redis:7-alpine"
+      }
+    }
+  },
+  {
+    "Action": "die",
+    "time": 1791966246,
+    "timeNano": 1791966246734141000,
+    "Actor": {
+      "Attributes": {
+        "name": "hlcc-p3-loop",
+        "image": "redis:7-alpine",
+        "exitCode": "1"
+      }
+    }
+  }
+]

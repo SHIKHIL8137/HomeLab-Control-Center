@@ -12,6 +12,7 @@ const toProject = (r: Row): Project => ({
   environment: r.environment as Project['environment'],
   desiredState: r.desired_state as Project['desiredState'],
   healthUrl: (r.health_url as string | null) ?? null,
+  healthAllowPrivate: Number(r.health_allow_private) === 1,
   containers: JSON.parse(String(r.containers)),
   capabilities: JSON.parse(String(r.capabilities)),
   createdAt: new Date(Number(r.created_at)).toISOString(),
@@ -35,8 +36,8 @@ export function insertProject(db: Db, p: ProjectInput, now: number): boolean {
     .prepare(
       `INSERT OR IGNORE INTO projects
        (id, name, description, repo_url, deployment_dir, environment, desired_state, health_url,
-        containers, capabilities, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        health_allow_private, containers, capabilities, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       p.id,
@@ -47,6 +48,7 @@ export function insertProject(db: Db, p: ProjectInput, now: number): boolean {
       p.environment,
       p.desiredState,
       p.healthUrl,
+      p.healthAllowPrivate ? 1 : 0,
       JSON.stringify(p.containers),
       JSON.stringify(p.capabilities),
       now,
@@ -67,7 +69,7 @@ export function updateProject(
   const next = { ...current, ...patch };
   db.prepare(
     `UPDATE projects SET name = ?, description = ?, repo_url = ?, deployment_dir = ?, environment = ?,
-     desired_state = ?, health_url = ?, containers = ?, updated_at = ? WHERE id = ?`,
+     desired_state = ?, health_url = ?, health_allow_private = ?, containers = ?, updated_at = ? WHERE id = ?`,
   ).run(
     next.name,
     next.description,
@@ -76,6 +78,7 @@ export function updateProject(
     next.environment,
     next.desiredState,
     next.healthUrl,
+    next.healthAllowPrivate ? 1 : 0,
     JSON.stringify(next.containers),
     now,
     id,

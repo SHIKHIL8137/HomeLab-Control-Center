@@ -7,7 +7,13 @@ import {
   PauseCircle,
   XCircle,
 } from 'lucide-react';
-import type { DataSource, Freshness, NotAvailable, ProjectHealthStatus } from '@hlcc/shared';
+import type {
+  DataSource,
+  Freshness,
+  HttpCheckStatus,
+  NotAvailable,
+  ProjectHealthStatus,
+} from '@hlcc/shared';
 import { useNow } from '../hooks';
 import { timeAgo } from '../lib/format';
 
@@ -207,6 +213,26 @@ export function EmptyState({
 
 export function UnavailableNote({ info }: { info: NotAvailable }) {
   return <EmptyState title="Not available yet">{info.reason}</EmptyState>;
+}
+
+/** Shows the state of an HTTP check; a check that is not configured says so instead of looking fine. */
+export function HttpCheckPill({ check }: { check: HttpCheckStatus }) {
+  if (check.state === 'not_configured') return <Pill tone="muted">Not configured</Pill>;
+  if (check.state === 'pending') return <Pill tone="muted">Pending first check</Pill>;
+  const stale = check.freshness !== 'current';
+  if (check.state === 'ok') {
+    return (
+      <Pill
+        tone={stale ? 'warn' : 'ok'}
+      >{`OK · ${check.latencyMs ?? '?'} ms${stale ? ' (stale)' : ''}`}</Pill>
+    );
+  }
+  if (check.state === 'blocked') return <Pill tone="bad">Blocked by policy</Pill>;
+  return (
+    <Pill tone={check.consecutiveFailures >= 2 ? 'bad' : 'warn'}>
+      {`Failing (${check.consecutiveFailures})`}
+    </Pill>
+  );
 }
 
 export const Spinner = ({ label = 'Loading' }: { label?: string }) => (

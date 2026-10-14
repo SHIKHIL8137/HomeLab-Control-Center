@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ContainerView, ContainersResponse } from '@hlcc/shared';
-import { useContainers } from '../hooks';
+import { useContainers, useEvents } from '../hooks';
 import { formatBytes, percent } from '../lib/format';
 import {
+  Card,
   EmptyState,
   FreshnessBadge,
   Notice,
@@ -15,11 +16,9 @@ import {
 
 export function StateCell({ c }: { c: ContainerView }) {
   if (c.state === 'running') {
-    return (
-      <Pill tone={c.health === 'unhealthy' ? 'bad' : 'ok'}>
-        {c.health === 'unhealthy' ? 'Running · unhealthy' : 'Running'}
-      </Pill>
-    );
+    if (c.health === 'unhealthy') return <Pill tone="bad">Running · unhealthy</Pill>;
+    if (c.health === 'unknown') return <Pill tone="warn">Running · health unknown</Pill>;
+    return <Pill tone="ok">Running</Pill>;
   }
   if (c.state === 'restarting') return <Pill tone="bad">Restarting</Pill>;
   const intent = {
@@ -35,11 +34,43 @@ export function StateCell({ c }: { c: ContainerView }) {
   );
 }
 
+function RecentEvents() {
+  const { data, error } = useEvents();
+  return (
+    <Card title="Recent container events" className="mt-4">
+      {error && <p className="text-sm text-muted">Events are unavailable right now.</p>}
+      {data && data.items.length === 0 && <p className="text-sm text-muted">No events recorded.</p>}
+      {data && data.items.length > 0 && (
+        <ul className="divide-y divide-line text-sm">
+          {data.items.map((e) => (
+            <li key={e.id} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
+              <span>
+                <span className="font-medium">{e.container}</span>{' '}
+                <span className="text-muted">{e.action}</span>
+              </span>
+              <span className="text-xs text-muted">
+                {e.exitCode !== null && `exit ${e.exitCode} · `}
+                {new Date(e.ts).toLocaleString()}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {data && <p className="mt-2 text-xs text-muted">{data.note}</p>}
+    </Card>
+  );
+}
+
 export default function Containers() {
   const { data, error, isLoading } = useContainers();
   if (isLoading) return <Spinner />;
   if (error || !data) return <Notice tone="bad" title="Cannot load containers" />;
-  return <ContainersBody data={data} />;
+  return (
+    <>
+      <ContainersBody data={data} />
+      <RecentEvents />
+    </>
+  );
 }
 
 export function ContainersBody({ data }: { data: ContainersResponse }) {
@@ -64,7 +95,18 @@ export function ContainersBody({ data }: { data: ContainersResponse }) {
           tone="warn"
           title={data.freshness === 'stale' ? 'Container data is stale' : 'No container data'}
         >
-          States below are the last known ones and may have changed.
+          {data.freshness === 'stale'
+            ? 'States below are the last known ones and may have changed.'
+            : 'Nothing has been collected from Docker yet.'}
+        </Notice>
+      )}
+      {data.warnings.length > 0 && (
+        <Notice tone="warn" title="Some container details could not be read">
+          <ul className="list-disc pl-5">
+            {data.warnings.slice(0, 5).map((w) => (
+              <li key={w}>{w}</li>
+            ))}
+          </ul>
         </Notice>
       )}
       <label className="sr-only" htmlFor="filter">
@@ -124,7 +166,7 @@ export function ContainersBody({ data }: { data: ContainersResponse }) {
                   <td className="px-3 py-2">
                     <StateCell c={c} />
                   </td>
-                  <td className="px-3 py-2 tabular-nums">{c.restartCount}</td>
+                  <td className="px-3 py-2 tabular-nums">{c.restartCount ?? '—'}</td>
                   <td className="px-3 py-2 tabular-nums">{percent(c.cpuPercent)}</td>
                   <td className="px-3 py-2 tabular-nums">
                     {formatBytes(c.memUsageBytes)} /{' '}

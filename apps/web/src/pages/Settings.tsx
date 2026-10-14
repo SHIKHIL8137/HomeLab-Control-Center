@@ -1,11 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useAuthStatus, useOverview } from '../hooks';
+import { useAuthStatus, useNetwork, useOverview } from '../hooks';
+import { NetworkCard } from '../components/NetworkCard';
 import { api } from '../lib/api';
 import { Card, PageHeader, SourceBadge } from '../components/ui';
 
 export default function Settings() {
   const { data: auth } = useAuthStatus();
   const { data: o } = useOverview();
+  const { data: net } = useNetwork();
   const qc = useQueryClient();
   const signOut = async () => {
     await api('/auth/logout', { method: 'POST' });
@@ -43,6 +45,7 @@ export default function Settings() {
             the browser.
           </p>
         </Card>
+        {net && <NetworkCard n={net} />}
       </div>
     </>
   );
