@@ -44,13 +44,83 @@ flock -n 9 || die "another deploy is running" 75
 exec > >(tee -a "$LOG") 2>&1
 say "start $(date -Is) commit $sha"
 
-# Unpack first so the sender's pipe is always drained, whatever we decide next.
+# Receive a bounded archive, validate every member, then safely extract regular files only.
 staging="$HLCC_ROOT/releases/.incoming-$sha-$$"
-cleanup_staging() { if [ -n "${staging:-}" ]; then rm -rf -- "$staging"; fi; }
+archive="$HLCC_ROOT/releases/.incoming-$sha-$$.tar"
+cleanup_staging() {
+  [ -z "${staging:-}" ] || rm -rf -- "$staging"
+  [ -z "${archive:-}" ] || rm -f -- "$archive"
+}
 trap cleanup_staging EXIT
-mkdir -p "$staging"
-timeout 120 head -c $((200 * 1024 * 1024)) | tar -x --no-same-owner -f - -C "$staging"
-[ -z "$(find "$staging" -type l -print -quit)" ] || die "release contains a symlink; refusing"
+mkdir -m 700 "$staging"
+: > "$archive"
+# Read one byte beyond the limit so oversized input is rejected rather than silently truncated.
+timeout 120 head -c $((200 * 1024 * 1024 + 1)) > "$archive"
+archive_size=$(wc -c < "$archive")
+[ "$archive_size" -le $((200 * 1024 * 1024)) ] || die "release archive exceeds 200 MiB"
+
+python3 - "$archive" "$staging" <<'PYARCHIVE'
+import os
+import sys
+import tarfile
+from pathlib import Path, PurePosixPath
+
+archive, destination = sys.argv[1:]
+root = Path(destination).resolve()
+max_files = 100000
+max_expanded = 500 * 1024 * 1024
+total = 0
+
+try:
+    with tarfile.open(archive, mode="r:*") as tf:
+        members = tf.getmembers()
+        if len(members) > max_files:
+            raise ValueError("too many archive entries")
+
+        checked = []
+        seen = set()
+        for m in members:
+            name = m.name
+            path = PurePosixPath(name)
+            if not name or path.is_absolute() or any(part in ("", ".", "..") for part in name.split("/")):
+                raise ValueError("unsafe archive path")
+            if name in seen:
+                raise ValueError("duplicate archive path")
+            seen.add(name)
+
+            # Git release archives need only directories and regular files.
+            if not (m.isdir() or m.isfile()):
+                raise ValueError("release contains a symlink, hard link, or special file")
+            if m.size < 0:
+                raise ValueError("invalid file size")
+            total += m.size
+            if total > max_expanded:
+                raise ValueError("expanded release exceeds 500 MiB")
+            target = (root / name).resolve()
+            if target != root and root not in target.parents:
+                raise ValueError("archive path escapes staging directory")
+            checked.append((m, target))
+
+        # Nothing is written until every archive entry passes validation.
+        for m, target in checked:
+            if m.isdir():
+                target.mkdir(parents=True, exist_ok=True)
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            source = tf.extractfile(m)
+            if source is None:
+                raise ValueError("cannot read archive file")
+            with source, open(target, "xb") as out:
+                while True:
+                    chunk = source.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    out.write(chunk)
+            os.chmod(target, 0o755 if m.mode & 0o111 else 0o644)
+except (tarfile.TarError, OSError, ValueError) as exc:
+    print(f"deploy: invalid release archive: {exc}", file=sys.stderr)
+    sys.exit(1)
+PYARCHIVE
 [ -f "$staging/deploy/compose.yaml" ] || die "release has no deploy/compose.yaml"
 
 # ---- 2. the files must hash to the tree CI built -----------------------------------------------

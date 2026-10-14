@@ -203,6 +203,49 @@ describe.skipIf(!hasTools)('hlcc-deploy.sh', () => {
     expect(r.calls).toEqual([]);
   });
 
+  it.skipIf(process.platform === 'win32')(
+    'rejects unsafe archive paths before running Docker',
+    () => {
+      const bad = makeRelease();
+      const dir = tmp('malicious-tar');
+      const tarPath = join(dir, 'bad.tar');
+      execFileSync('python3', [
+        '-c',
+        [
+          'import tarfile,sys,io',
+          'with tarfile.open(sys.argv[1], "w") as t:',
+          ' i=tarfile.TarInfo("../escape"); b=b"bad"; i.size=len(b); t.addfile(i,io.BytesIO(b))',
+        ].join('\n'),
+        tarPath,
+      ]);
+      const r = deploy(bad, { tar: readFileSync(tarPath) });
+      expect(r.status).not.toBe(0);
+      expect(r.out).toMatch(/unsafe archive path|invalid release archive/);
+      expect(r.calls).toEqual([]);
+      expect(existsSync(join(dir, 'escape'))).toBe(false);
+    },
+  );
+
+  it.skipIf(process.platform === 'win32')('rejects hard links in release archives', () => {
+    const bad = makeRelease();
+    const dir = tmp('hardlink-tar');
+    const tarPath = join(dir, 'bad.tar');
+    execFileSync('python3', [
+      '-c',
+      [
+        'import tarfile,sys,io',
+        'with tarfile.open(sys.argv[1], "w") as t:',
+        ' i=tarfile.TarInfo("deploy/compose.yaml"); b=b"name: x\\n"; i.size=len(b); t.addfile(i,io.BytesIO(b))',
+        ' i=tarfile.TarInfo("deploy/linked.yaml"); i.type=tarfile.LNKTYPE; i.linkname="deploy/compose.yaml"; t.addfile(i)',
+      ].join('\n'),
+      tarPath,
+    ]);
+    const r = deploy(bad, { tar: readFileSync(tarPath) });
+    expect(r.status).not.toBe(0);
+    expect(r.out).toMatch(/invalid release archive|hard link|special file/);
+    expect(r.calls).toEqual([]);
+  });
+
   it('does not deploy while the server is busy', () => {
     const r = deploy(rel, { load: '9.00', running: true });
     expect(r.status).toBe(75);
