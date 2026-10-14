@@ -1,0 +1,7 @@
+{
+  "MemTotal": 6214492160,
+  "NCPU": 4,
+  "OperatingSystem": "Docker Desktop",
+  "KernelVersion": "6.18.33.1-microsoft-standard-WSL2",
+  "ServerVersion": "29.6.1"
+}

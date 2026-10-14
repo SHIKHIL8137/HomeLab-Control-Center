@@ -55,10 +55,11 @@ export function AuthPage({ mode }: { mode: 'setup' | 'login' }) {
               className={input}
               autoComplete="off"
               aria-invalid={Boolean(errors.setupToken)}
-              {...register('setupToken', { required: 'Enter the token from the server log' })}
+              {...register('setupToken', { required: 'Enter the one-time setup token' })}
             />
             <p className="mt-1 text-xs text-muted">
-              Printed once in the API log, or the HLCC_SETUP_TOKEN value.
+              The one-time token you configured for this server (see the deployment guide). It is
+              never shown in logs.
             </p>
             {errors.setupToken && (
               <p role="alert" className="mt-1 text-xs text-bad">

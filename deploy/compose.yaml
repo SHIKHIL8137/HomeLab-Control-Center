@@ -1,36 +1,107 @@
-# HomeLab Control Center. Not deployed anywhere yet; see docs/deployment.md before using on the server.
-# Run from the repository root:  docker compose -f deploy/compose.yaml up --build
+# HomeLab Control Center: PRODUCTION compose file.
+#
+# Every setting that matters for safety is required: if one is missing, `docker compose config`
+# and `up` stop with a message instead of starting with a weak default. For a local demo with no
+# Docker access at all, use deploy/compose.local.yaml instead.
+#
+# Run from the repository root, after `npm run preflight` passes:
+#   docker compose --env-file <your .env> -f deploy/compose.yaml up -d --build
+# See docs/deployment.md. Nothing here has been run on the Ubuntu server yet.
 name: homelab-control-center
 
+x-hardening: &hardening
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ['no-new-privileges:true']
+  # Container logs are rotated, so a noisy day cannot fill the disk.
+  logging:
+    driver: json-file
+    options: { max-size: '10m', max-file: '3' }
+
 services:
-  hlcc:
+  # The ONLY service that can reach the Docker socket, and only through a read-only allowlist
+  # (apps/docker-proxy): authenticated, GET-only, six fixed routes, secrets stripped from responses.
+  docker-proxy:
+    <<: *hardening
     build:
       context: ..
       dockerfile: deploy/Dockerfile
-    image: homelab-control-center:local
-    restart: unless-stopped
+      target: proxy
+    image: homelab-control-center-docker-proxy:local
     environment:
-      HLCC_MODE: ${HLCC_MODE:-mock}
-      HLCC_COOKIE_SECURE: ${HLCC_COOKIE_SECURE:-false}
-      HLCC_TRUST_PROXY: ${HLCC_TRUST_PROXY:-false}
+      DOCKER_SOCKET: /var/run/docker.sock
+      PROXY_TOKEN_FILE: /run/secrets/docker_proxy_token
+    secrets: [docker_proxy_token]
+    volumes:
+      # A socket mount is writable regardless of ":ro" (the Docker API is not read-only because the
+      # file is). That is why this container is minimal, isolated on an internal network with no
+      # published port, authenticated, and filters every request. See docs/security.md.
+      - /var/run/docker.sock:/var/run/docker.sock
+    # Numeric id of the host's docker group (Ubuntu: `getent group docker | cut -d: -f3`).
+    group_add: ['${DOCKER_GID:?set DOCKER_GID to the numeric id of the docker group}']
+    mem_limit: 64m
+    pids_limit: 64
+    stop_grace_period: 10s
+    networks: [hlcc-docker]
+
+  hlcc:
+    <<: *hardening
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: api
+    image: homelab-control-center:local
+    depends_on:
+      docker-proxy:
+        condition: service_healthy
+    environment:
+      HLCC_MODE: ${HLCC_MODE:-live}
+      # Production serves over HTTPS (tunnel or Tailscale); cookies are Secure unless you say otherwise.
+      HLCC_COOKIE_SECURE: ${HLCC_COOKIE_SECURE:-true}
+      HLCC_ALLOW_INSECURE_COOKIES: ${HLCC_ALLOW_INSECURE_COOKIES:-false}
+      # Number of reverse proxies in front of this container (cloudflared = 1). 0 trusts no header.
+      HLCC_TRUST_PROXY: ${HLCC_TRUST_PROXY:-0}
+      HLCC_ALLOWED_ORIGINS: ${HLCC_ALLOWED_ORIGINS:-}
       HLCC_POLL_INTERVAL_MS: ${HLCC_POLL_INTERVAL_MS:-15000}
       HLCC_RETENTION_HOURS: ${HLCC_RETENTION_HOURS:-48}
-      HLCC_ALLOWED_ORIGINS: ${HLCC_ALLOWED_ORIGINS:-}
-      HLCC_SETUP_TOKEN: ${HLCC_SETUP_TOKEN:-}
+      HLCC_HEALTH_INTERVAL_MS: ${HLCC_HEALTH_INTERVAL_MS:-60000}
+      # Secrets are read from mounted files, so they never appear in `docker inspect`.
+      HLCC_SETUP_TOKEN_FILE: /run/secrets/hlcc_setup_token
+      HLCC_DOCKER_TOKEN_FILE: /run/secrets/docker_proxy_token
+      HLCC_DOCKER_URL: http://docker-proxy:2375
+      HLCC_DISKS: ${HLCC_DISKS:?set HLCC_DISKS to a JSON list of the disks to measure}
+      HLCC_HOST_PROC_ASSERT: ${HLCC_HOST_PROC_ASSERT:-false}
+      HLCC_NETDATA_URL: ${HLCC_NETDATA_URL:-}
+    secrets: [docker_proxy_token, hlcc_setup_token]
     ports:
       # Loopback only. Remote access goes through an approved tunnel or Tailscale, never a public port.
       - '127.0.0.1:${HLCC_PORT:-8787}:8787'
     volumes:
       # Persistent state lives outside the container and outside the release directory.
-      - ${HLCC_DATA_PATH:-./data}:/data
+      - ${HLCC_DATA_PATH:?set HLCC_DATA_PATH to an absolute directory for the database}:/data
+      # Empty directories whose filesystems are measured (disk usage only). Mounting these instead
+      # of "/" or "/srv/storage" keeps the dashboard from being able to read anything else there.
+      - ${HLCC_PROBE_ROOT:?set HLCC_PROBE_ROOT to an empty directory on the root filesystem}:/probe/root:ro
+      - ${HLCC_PROBE_STORAGE:?set HLCC_PROBE_STORAGE to an empty directory inside the secondary disk}:/probe/storage:ro
+    # Sized from measurement (about 40 MiB idle); these are ceilings, not reservations.
     mem_limit: 256m
-    read_only: true
+    pids_limit: 128
+    stop_grace_period: 15s
     tmpfs: [/tmp]
-    cap_drop: [ALL]
-    security_opt: ['no-new-privileges:true']
-    networks: [hlcc-internal]
-    # No Docker socket is mounted. Live Docker access arrives with the Phase 3 restricted helper.
+    # The API is on the proxy's internal network and on a normal network for the published port.
+    # No Docker socket is mounted here.
+    networks: [hlcc-internal, hlcc-docker]
+
+secrets:
+  docker_proxy_token:
+    file: ${HLCC_SECRET_DOCKER_TOKEN_FILE:?set HLCC_SECRET_DOCKER_TOKEN_FILE to a file containing the proxy credential}
+  hlcc_setup_token:
+    file: ${HLCC_SECRET_SETUP_TOKEN_FILE:?set HLCC_SECRET_SETUP_TOKEN_FILE to a file containing the one-time setup token}
 
 networks:
   hlcc-internal:
     driver: bridge
+  hlcc-docker:
+    # No route to the outside world: only the API and the proxy can talk on it.
+    internal: true

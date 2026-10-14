@@ -1,4 +1,4 @@
-import type { ContainerInfo, HostSample } from '@hlcc/shared';
+import type { ContainerInfo, DockerSnapshot, HostSample, NetdataExtras } from '@hlcc/shared';
 import type { Clock } from '../db.ts';
 import type { Provider } from './types.ts';
 
@@ -97,6 +97,7 @@ export function createMockProvider(clock: Clock): Provider {
       const cpu = Math.min(98, Math.max(2, 18 + 12 * Math.sin(phase) + 6 * Math.sin(phase * 3.1)));
       return {
         collectedAt: new Date(t).toISOString(),
+        method: { kind: 'mock', verification: 'mock' },
         cpuPercent: Math.round(cpu * 10) / 10,
         memTotalBytes: total,
         memUsedBytes: memUsed,
@@ -108,14 +109,28 @@ export function createMockProvider(clock: Clock): Provider {
         uptimeSeconds: Math.floor((t - bootMs) / 1000),
         bootTime: new Date(bootMs).toISOString(),
         disks: [
-          { mount: '/', totalBytes: 458 * GB, usedBytes: 32 * GB },
-          { mount: '/srv/storage', totalBytes: 146 * GB, usedBytes: 2 * GB },
+          {
+            mount: '/',
+            status: 'ok',
+            fsType: 'ext4',
+            totalBytes: 458 * GB,
+            usedBytes: 32 * GB,
+            availableBytes: 400 * GB,
+          },
+          {
+            mount: '/srv/storage',
+            status: 'ok',
+            fsType: 'ext4',
+            totalBytes: 146 * GB,
+            usedBytes: 2 * GB,
+            availableBytes: 137 * GB,
+          },
         ],
       };
     },
-    async containers(): Promise<ContainerInfo[]> {
+    async docker(): Promise<DockerSnapshot> {
       const t = clock();
-      return DEFS.map((d) => {
+      const containers = DEFS.map((d): ContainerInfo => {
         const running = d.state === 'running';
         return {
           id: `mock-${d.name}`,
@@ -135,6 +150,27 @@ export function createMockProvider(clock: Clock): Provider {
           ports: d.ports ?? [],
         };
       });
+      return {
+        containers,
+        // One fixed event per instance, so the events list has something labelled demo to show.
+        events: [{ ts: started, container: 'auth-service', action: 'die', exitCode: 1 }],
+        daemon: {
+          memTotalBytes: 7 * GiB,
+          ncpu: 8,
+          operatingSystem: 'Mock Linux',
+          kernelVersion: 'mock',
+        },
+        warnings: [],
+      };
+    },
+    async netdata(): Promise<NetdataExtras> {
+      const phase = clock() / 20_000;
+      return {
+        netInKbps: Math.round((120 + 60 * Math.sin(phase)) * 10) / 10,
+        netOutKbps: Math.round((40 + 20 * Math.sin(phase * 1.7)) * 10) / 10,
+        diskReadKiBps: Math.round((30 + 20 * Math.sin(phase * 0.6)) * 10) / 10,
+        diskWriteKiBps: Math.round((55 + 30 * Math.sin(phase * 0.9)) * 10) / 10,
+      };
     },
   };
 }

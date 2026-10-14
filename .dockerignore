@@ -1,0 +1,22 @@
+# Keep the build context small and keep secrets and local state out of every image layer.
+.git
+.github
+**/node_modules
+**/dist
+**/coverage
+**/*.log
+data
+probe
+secrets
+local-secrets
+.env
+.env.*
+!.env.example
+**/*.pem
+**/*.key
+**/*.crt
+**/*.p12
+**/.DS_Store
+docs
+*.md
+!README.md

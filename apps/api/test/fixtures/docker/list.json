@@ -1,0 +1,38 @@
+[
+  {
+    "Id": "b57bc515b2f3912f5e099bc3ba2a6868096ec0d264f7fada97352052a6a4cccc",
+    "Names": ["/hlcc-p3-loop"],
+    "Image": "redis:7-alpine",
+    "State": "exited",
+    "Status": "Exited (1) 33 seconds ago",
+    "Created": 1791966243,
+    "Ports": [],
+    "Labels": {}
+  },
+  {
+    "Id": "878c73c6bf01a18a0e7a490f32d1b7252db6570166e7bf91a58200d6d15df4a4",
+    "Names": ["/hlcc-p3-exit"],
+    "Image": "redis:7-alpine",
+    "State": "exited",
+    "Status": "Exited (3) 36 seconds ago",
+    "Created": 1791966242,
+    "Ports": [],
+    "Labels": {}
+  },
+  {
+    "Id": "7be74bc789690bf27a724339b9e45a3abfa9af94f30eed800b82a656e5d7e0f1",
+    "Names": ["/hlcc-p3-web"],
+    "Image": "redis:7-alpine",
+    "State": "running",
+    "Status": "Up 37 seconds (healthy)",
+    "Created": 1791966241,
+    "Ports": [
+      {
+        "IP": "",
+        "PrivatePort": 6379,
+        "Type": "tcp"
+      }
+    ],
+    "Labels": {}
+  }
+]

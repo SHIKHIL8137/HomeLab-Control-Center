@@ -76,6 +76,54 @@ describe('migrations', () => {
 });
 
 describe('config', () => {
+  it('treats empty optional variables, as Compose passes them, as not set', () => {
+    const cfg = loadConfig({
+      HLCC_SETUP_TOKEN: '',
+      HLCC_NETDATA_URL: '',
+      HLCC_DOCKER_URL: '',
+      HLCC_DISKS: '',
+      HLCC_WEB_DIST: '',
+    });
+    expect(cfg.setupToken).toBeUndefined();
+    expect(cfg.netdataUrl).toBeUndefined();
+    expect(cfg.dockerUrl).toBeUndefined();
+    expect(cfg.disks).toEqual([]);
+    expect(cfg.webDist).toBeUndefined();
+  });
+
+  it('parses the disk list and rejects malformed ones', () => {
+    const disks =
+      '[{"label":"/","path":"/probe/root"},{"label":"/srv/storage","path":"/probe/storage","separate":true}]';
+    expect(loadConfig({ HLCC_DISKS: disks }).disks).toEqual([
+      { label: '/', path: '/probe/root', separate: false },
+      { label: '/srv/storage', path: '/probe/storage', separate: true },
+    ]);
+    for (const bad of [
+      'not json',
+      '{}',
+      '[{"label":"x","path":"relative"}]',
+      '[{"label":"x","path":"/a/../b b"}]',
+    ]) {
+      expect(() => loadConfig({ HLCC_DISKS: bad }), bad).toThrow(/HLCC_DISKS/);
+    }
+  });
+
+  it('only accepts a plain-http Docker proxy URL without credentials', () => {
+    const TOKEN = 'test-only-docker-token-0123456789abcdef0123456789';
+    expect(
+      loadConfig({ HLCC_DOCKER_URL: 'http://docker-proxy:2375', HLCC_DOCKER_TOKEN: TOKEN })
+        .dockerUrl,
+    ).toBe('http://docker-proxy:2375');
+    for (const u of [
+      'https://docker-proxy:2375',
+      'tcp://x:2375',
+      'http://u:p@docker-proxy:2375',
+      'nonsense',
+    ]) {
+      expect(() => loadConfig({ HLCC_DOCKER_URL: u, HLCC_DOCKER_TOKEN: TOKEN }), u).toThrow();
+    }
+  });
+
   it('has safe defaults and rejects invalid values', () => {
     const cfg = loadConfig({});
     expect(cfg.mode).toBe('mock');

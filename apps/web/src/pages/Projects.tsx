@@ -9,9 +9,9 @@ import {
   Card,
   FreshnessBadge,
   HealthBadge,
+  HttpCheckPill,
   Notice,
   PageHeader,
-  Pill,
   Spinner,
 } from '../components/ui';
 
@@ -192,9 +192,7 @@ export default function Projects() {
               <div className="flex justify-between">
                 <dt className="text-muted">HTTP check</dt>
                 <dd>
-                  <Pill tone="muted">
-                    {p.healthUrl ? 'Configured, not probed' : 'Not configured'}
-                  </Pill>
+                  <HttpCheckPill check={p.httpCheck} />
                 </dd>
               </div>
             </dl>

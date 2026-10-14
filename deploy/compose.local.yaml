@@ -1,0 +1,43 @@
+# HomeLab Control Center: LOCAL DEMO compose file (mock data, no Docker access, no secrets in the file).
+#
+#   docker compose -f deploy/compose.local.yaml up --build
+#   docker compose -f deploy/compose.local.yaml exec hlcc cat /data/setup-token     # your one-time setup token
+#   open http://127.0.0.1:8787 and create the administrator with that token
+#
+# This is deliberately a separate file from the production one. It starts only the dashboard in
+# mock mode: there is no Docker socket, no proxy, and everything shown is labelled demo data.
+#
+# It contains no credentials. NODE_ENV=development makes the app generate a random one-time setup
+# token on first start and write it to a private file inside the demo volume (it is never logged);
+# the file is deleted once the administrator exists. Cookies are not marked Secure because the demo
+# is served over plain http on your own machine. Do not use this file on a server.
+name: homelab-control-center-local
+
+services:
+  hlcc:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: api
+    image: homelab-control-center:local
+    environment:
+      # The image defaults to production, which refuses to generate a setup token. Development
+      # allows it and also accepts non-Secure cookies, which is what a plain-http demo needs.
+      NODE_ENV: development
+      HLCC_MODE: mock
+    ports:
+      - '127.0.0.1:${HLCC_PORT:-8787}:8787'
+    volumes:
+      - hlcc-local-data:/data
+    mem_limit: 256m
+    pids_limit: 128
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+
+volumes:
+  hlcc-local-data:

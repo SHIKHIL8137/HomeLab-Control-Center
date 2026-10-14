@@ -1,0 +1,24 @@
+{
+  "Id": "878c73c6bf01a18a0e7a490f32d1b7252db6570166e7bf91a58200d6d15df4a4",
+  "Name": "/hlcc-p3-exit",
+  "Created": "2026-10-14T08:24:02.606860684Z",
+  "Image": "redis:7-alpine",
+  "RestartCount": 0,
+  "State": {
+    "Status": "exited",
+    "Running": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "ExitCode": 3,
+    "StartedAt": "2026-10-14T08:24:02.802823074Z",
+    "FinishedAt": "2026-10-14T08:24:03.063746831Z"
+  },
+  "HostConfig": {
+    "Memory": 0,
+    "RestartPolicy": {
+      "Name": "no",
+      "MaximumRetryCount": 0
+    }
+  },
+  "Labels": {}
+}

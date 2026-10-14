@@ -27,7 +27,10 @@ describe('AuthPage', () => {
     await userEvent.type(screen.getByLabelText('Password'), 'short');
     await userEvent.click(screen.getByRole('button', { name: 'Create administrator' }));
     expect(await screen.findByText('At least 12 characters')).toBeInTheDocument();
-    expect(screen.getByText('Enter the token from the server log')).toBeInTheDocument();
+    expect(screen.getByText('Enter the one-time setup token')).toBeInTheDocument();
+    // The help text must not suggest the token appears in logs, and must not name server variables.
+    expect(screen.getByText(/never shown in logs/)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/HLCC_|PROXY_TOKEN/);
   });
 
   it('shows the server error without echoing the password', async () => {

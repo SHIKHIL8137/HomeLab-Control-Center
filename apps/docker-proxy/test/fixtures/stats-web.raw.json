@@ -1,0 +1,98 @@
+{
+  "id": "7be74bc789690bf27a724339b9e45a3abfa9af94f30eed800b82a656e5d7e0f1",
+  "name": "/hlcc-p3-web",
+  "os_type": "linux",
+  "read": "2026-10-14T08:24:40.085548917Z",
+  "cpu_stats": {
+    "cpu_usage": {
+      "total_usage": 644945000,
+      "usage_in_kernelmode": 136677000,
+      "usage_in_usermode": 508267000
+    },
+    "system_cpu_usage": 537840000000,
+    "online_cpus": 4,
+    "throttling_data": {
+      "periods": 0,
+      "throttled_periods": 0,
+      "throttled_time": 0
+    }
+  },
+  "memory_stats": {
+    "usage": 3977216,
+    "stats": {
+      "active_anon": 4096,
+      "active_file": 0,
+      "anon": 2772992,
+      "anon_thp": 0,
+      "file": 0,
+      "file_dirty": 0,
+      "file_mapped": 0,
+      "file_writeback": 0,
+      "inactive_anon": 2768896,
+      "inactive_file": 0,
+      "kernel_stack": 98304,
+      "pgactivate": 0,
+      "pgdeactivate": 0,
+      "pgfault": 16206,
+      "pglazyfree": 0,
+      "pglazyfreed": 0,
+      "pgmajfault": 0,
+      "pgrefill": 0,
+      "pgscan": 0,
+      "pgsteal": 0,
+      "shmem": 0,
+      "slab": 327248,
+      "slab_reclaimable": 104400,
+      "slab_unreclaimable": 222848,
+      "sock": 0,
+      "thp_collapse_alloc": 0,
+      "thp_fault_alloc": 0,
+      "unevictable": 0,
+      "workingset_activate": 0,
+      "workingset_nodereclaim": 0,
+      "workingset_refault": 0
+    },
+    "limit": 134217728
+  },
+  "networks": {
+    "eth0": {
+      "rx_bytes": 2004,
+      "rx_packets": 24,
+      "rx_errors": 0,
+      "rx_dropped": 0,
+      "tx_bytes": 126,
+      "tx_packets": 3,
+      "tx_errors": 0,
+      "tx_dropped": 0
+    }
+  },
+  "pids_stats": {
+    "current": 6,
+    "limit": 18446744073709552000
+  },
+  "blkio_stats": {
+    "io_service_bytes_recursive": null,
+    "io_serviced_recursive": null,
+    "io_queue_recursive": null,
+    "io_service_time_recursive": null,
+    "io_wait_time_recursive": null,
+    "io_merged_recursive": null,
+    "io_time_recursive": null,
+    "sectors_recursive": null
+  },
+  "num_procs": 0,
+  "storage_stats": {},
+  "preread": "0001-01-01T00:00:00Z",
+  "precpu_stats": {
+    "cpu_usage": {
+      "total_usage": 0,
+      "usage_in_kernelmode": 0,
+      "usage_in_usermode": 0
+    },
+    "throttling_data": {
+      "periods": 0,
+      "throttled_periods": 0,
+      "throttled_time": 0
+    }
+  }
+}

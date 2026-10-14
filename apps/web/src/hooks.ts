@@ -4,6 +4,8 @@ import type {
   AuditEvent,
   AuthStatus,
   ContainersResponse,
+  EventItem,
+  NetworkIdentity,
   MetricsHistory,
   Overview,
   ProjectView,
@@ -53,6 +55,21 @@ export const useHistory = (minutes: number) =>
     queryKey: ['history', minutes],
     queryFn: () => api<MetricsHistory>(`/metrics/history?minutes=${minutes}&limit=300`),
     ...poll,
+  });
+
+export const useEvents = () =>
+  useQuery({
+    queryKey: ['events'],
+    queryFn: () =>
+      api<{ items: EventItem[]; source: 'mock' | 'live'; note: string }>('/events?limit=20'),
+    ...poll,
+  });
+
+export const useNetwork = () =>
+  useQuery({
+    queryKey: ['network'],
+    queryFn: () => api<NetworkIdentity>('/network'),
+    staleTime: 0,
   });
 
 export const useAudit = () =>

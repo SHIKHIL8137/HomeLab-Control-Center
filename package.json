@@ -19,7 +19,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "scan": "node scripts/check-secrets.mjs",
-    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build && npm run scan"
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build && npm run scan",
+    "preflight": "node scripts/preflight.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -31,5 +32,6 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.2",
     "vitest": "^5.0.4"
-  }
+  },
+  "license": "UNLICENSED"
 }

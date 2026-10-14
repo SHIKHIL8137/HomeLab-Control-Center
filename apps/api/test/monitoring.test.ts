@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { loadConfig } from '../src/config.ts';
 import { createLiveProvider } from '../src/providers/live.ts';
+
+/** Live mode with nothing configured: every integration must report itself unavailable. */
+const liveWithoutIntegrations = () =>
+  createLiveProvider(loadConfig({ HLCC_MODE: 'live' }), () => Date.now());
 import { signedIn, makeApp } from './helpers.ts';
 
 const healthOf = (
@@ -43,7 +48,7 @@ describe('overview and staleness', () => {
   });
 
   it('shows live mode as unavailable instead of silently serving mock data', async () => {
-    const h = makeApp({ provider: createLiveProvider() });
+    const h = makeApp({ provider: liveWithoutIntegrations() });
     const { agent } = await signedIn(h);
     await h.collector.collectOnce();
 
@@ -51,8 +56,12 @@ describe('overview and staleness', () => {
     expect(body.mode).toBe('live');
     expect(body.host.freshness).toBe('unavailable');
     expect(body.host.data).toBeNull();
-    expect(body.collectorError.message).toMatch(/not implemented/i);
+    expect(body.docker.freshness).toBe('unavailable');
+    expect(body.collectorErrors.docker.message).toMatch(/not configured/i);
+    expect(body.collectorErrors.host.message).toBeTruthy();
+    expect(body.netdata).toEqual({ configured: false });
     expect((await agent.get('/api/v1/metrics/history')).body.points).toEqual([]);
+    expect((await agent.get('/api/v1/containers')).body.items).toEqual([]);
   });
 
   it('keeps mock and live samples apart', async () => {
@@ -66,7 +75,7 @@ describe('overview and staleness', () => {
     expect(res.body.units).toEqual({ cpu: '%', memory: 'bytes' });
     expect(res.body.points).toHaveLength(2);
 
-    const live = makeApp({ provider: createLiveProvider() });
+    const live = makeApp({ provider: liveWithoutIntegrations() });
     const s = await signedIn(live);
     expect((await s.agent.get('/api/v1/metrics/history')).body.points).toHaveLength(0);
   });

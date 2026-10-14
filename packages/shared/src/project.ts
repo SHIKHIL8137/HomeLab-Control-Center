@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { ContainerInfo } from './types.ts';
+import type { HttpCheckState } from './api.ts';
 
 export const CAPABILITIES = ['monitor', 'deploy', 'restart', 'env'] as const;
 export type Capability = (typeof CAPABILITIES)[number];
@@ -34,6 +35,8 @@ export const projectInputSchema = z.object({
     )
     .nullable()
     .default(null),
+  /** Explicit authorization to check a private (LAN, loopback, Tailscale) address. Off by default. */
+  healthAllowPrivate: z.boolean().default(false),
   containers: z.array(containerName).max(40).default([]),
   capabilities: z.array(z.enum(CAPABILITIES)).default(['monitor']),
 });
@@ -51,6 +54,22 @@ export interface ProjectHealth {
  * state says it should be running; with no data the answer is "unknown", never "healthy".
  */
 export function deriveProjectHealth(
+  project: Pick<ProjectInput, 'desiredState' | 'containers'>,
+  snapshot: ContainerInfo[] | null,
+  http?: { state: HttpCheckState; consecutiveFailures: number },
+): ProjectHealth {
+  const base = containerHealth(project, snapshot);
+  // An HTTP result can only make things worse: a reachable URL never upgrades missing container data.
+  const httpFailing =
+    http &&
+    (http.state === 'blocked' || (http.state === 'failed' && http.consecutiveFailures >= 2));
+  if (httpFailing && (base.status === 'healthy' || base.status === 'unknown')) {
+    return { status: 'degraded', reason: `HTTP check ${http.state}; ${base.reason}` };
+  }
+  return base;
+}
+
+function containerHealth(
   project: Pick<ProjectInput, 'desiredState' | 'containers'>,
   snapshot: ContainerInfo[] | null,
 ): ProjectHealth {
@@ -75,7 +94,11 @@ export function deriveProjectHealth(
     return { status: 'stopped', reason: 'Stopped; desired state not set' };
   }
   const notReady = found.filter(
-    (c) => c.state !== 'running' || c.health === 'unhealthy' || c.health === 'starting',
+    (c) =>
+      c.state !== 'running' ||
+      c.health === 'unhealthy' ||
+      c.health === 'starting' ||
+      c.health === 'unknown',
   );
   const missing = project.containers.length - found.length;
   if (notReady.length === 0 && missing === 0) {

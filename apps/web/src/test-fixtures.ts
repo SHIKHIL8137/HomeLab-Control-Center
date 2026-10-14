@@ -1,7 +1,23 @@
-import type { ContainerView, Overview } from '@hlcc/shared';
+import type { ContainerView, HostSample, HttpCheckStatus, Overview } from '@hlcc/shared';
 
-export const host = {
+export const httpCheck = (over: Partial<HttpCheckStatus> = {}): HttpCheckStatus => ({
+  state: 'not_configured',
+  statusCode: null,
+  latencyMs: null,
+  consecutiveFailures: 0,
+  lastCheckedAt: null,
+  lastSuccessAt: null,
+  lastFailureAt: null,
+  error: null,
+  targetClass: null,
+  source: null,
+  freshness: 'unavailable',
+  ...over,
+});
+
+export const host: HostSample = {
   collectedAt: '2026-10-14T12:00:00.000Z',
+  method: { kind: 'mock', verification: 'mock' },
   cpuPercent: 21.5,
   memTotalBytes: 7 * 1024 ** 3,
   memUsedBytes: 1.1 * 1024 ** 3,
@@ -12,7 +28,16 @@ export const host = {
   load1: 0.4,
   uptimeSeconds: 3600,
   bootTime: '2026-10-14T11:00:00.000Z',
-  disks: [{ mount: '/', totalBytes: 458e9, usedBytes: 32e9 }],
+  disks: [
+    {
+      mount: '/',
+      status: 'ok',
+      fsType: 'ext4',
+      totalBytes: 458e9,
+      usedBytes: 32e9,
+      availableBytes: 400e9,
+    },
+  ],
 };
 
 export function overview(over: Partial<Overview> = {}): Overview {
@@ -33,9 +58,31 @@ export function overview(over: Partial<Overview> = {}): Overview {
         name: 'Demo',
         desiredState: 'running',
         health: { status: 'healthy', reason: 'All containers running' },
+        httpCheck: 'not_configured',
       },
     ],
-    collectorError: null,
+    netdata: { configured: false },
+    connectivity: [
+      {
+        id: 'link',
+        label: 'Network link / Wi-Fi',
+        state: 'needs_host_agent',
+        detail: 'Needs the host agent',
+      },
+      {
+        id: 'public',
+        label: 'Public reachability',
+        state: 'not_configured',
+        detail: 'No health URL is configured yet',
+      },
+      {
+        id: 'tunnel',
+        label: 'Cloudflare Tunnel',
+        state: 'unknown',
+        detail: 'No public health URL to test it',
+      },
+    ],
+    collectorErrors: { host: null, docker: null, storage: null },
     deployments: { available: false, reason: 'Deployment history arrives in Phase 5' },
     alerts: { available: false, reason: 'Alert rules and incidents arrive in Phase 4' },
     ...over,

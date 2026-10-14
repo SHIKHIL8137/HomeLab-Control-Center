@@ -29,7 +29,10 @@ const PATTERNS = [
 ];
 
 // Files that contain deliberately fake credentials (they test the redaction code).
-const FAKE_SECRET_FIXTURES = new Set(['apps/api/test/units.test.ts']);
+const FAKE_SECRET_FIXTURES = new Set([
+  'apps/api/test/units.test.ts', // tests the redaction code
+  'apps/api/test/secretscan.test.ts', // tests this scanner
+]);
 
 const problems = [];
 for (const f of files) {
@@ -46,6 +49,21 @@ for (const f of files) {
   if (text.includes('\0')) continue;
   for (const [re, label] of PATTERNS)
     if (re.test(text)) problems.push(`${f}: looks like a ${label}`);
+  // In YAML (Compose files, workflows) a credential-named key must reference a variable or a secret
+  // file, never carry a literal value. "*_FILE" keys hold a path, which is fine.
+  if (/\.ya?ml$/.test(f)) {
+    for (const [i, line] of text.split('\n').entries()) {
+      const m =
+        /^\s*(?:-\s*)?([A-Za-z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API_?KEY)[A-Za-z0-9_]*)\s*:\s*(\S.*)$/i.exec(
+          line,
+        );
+      if (!m || /_FILE$/i.test(m[1])) continue;
+      const value = m[2].replace(/\s+#.*$/, '').trim();
+      // A reference ("${VAR}", "${{ secrets.X }}"), an empty string, or a nested mapping is fine.
+      if (/^(\$\{|["']?["']?$|\{|\[|\|)/.test(value) || /^['"]\$\{/.test(value)) continue;
+      problems.push(`${f}:${i + 1}: ${m[1]} has a fixed value (use a variable or a secret file)`);
+    }
+  }
 }
 
 if (problems.length) {

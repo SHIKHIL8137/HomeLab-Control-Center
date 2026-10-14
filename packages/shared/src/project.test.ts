@@ -53,7 +53,49 @@ describe('deriveProjectHealth', () => {
   });
 });
 
+describe('deriveProjectHealth with HTTP checks', () => {
+  const p = { desiredState: 'running' as const, containers: ['a'] };
+  const ok = [c('a')];
+
+  it('degrades a running project whose HTTP check keeps failing or is blocked', () => {
+    expect(deriveProjectHealth(p, ok, { state: 'failed', consecutiveFailures: 2 }).status).toBe(
+      'degraded',
+    );
+    expect(deriveProjectHealth(p, ok, { state: 'blocked', consecutiveFailures: 1 }).status).toBe(
+      'degraded',
+    );
+  });
+
+  it('ignores a single failure, not-configured and pending checks', () => {
+    for (const http of [
+      { state: 'failed' as const, consecutiveFailures: 1 },
+      { state: 'not_configured' as const, consecutiveFailures: 0 },
+      { state: 'pending' as const, consecutiveFailures: 0 },
+    ]) {
+      expect(deriveProjectHealth(p, ok, http).status).toBe('healthy');
+    }
+  });
+
+  it('never upgrades unknown or down because an HTTP check succeeded', () => {
+    expect(deriveProjectHealth(p, null, { state: 'ok', consecutiveFailures: 0 }).status).toBe(
+      'unknown',
+    );
+    expect(
+      deriveProjectHealth(p, [c('a', { state: 'exited' })], { state: 'ok', consecutiveFailures: 0 })
+        .status,
+    ).toBe('down');
+  });
+});
+
 describe('projectInputSchema', () => {
+  it('keeps private health targets disabled unless explicitly authorized', () => {
+    const base = { id: 'demo', name: 'Demo' };
+    expect(projectInputSchema.parse(base).healthAllowPrivate).toBe(false);
+    expect(projectInputSchema.parse({ ...base, healthAllowPrivate: true }).healthAllowPrivate).toBe(
+      true,
+    );
+  });
+
   it('rejects credentials in URLs, traversal paths and bad container names', () => {
     const base = { id: 'demo', name: 'Demo' };
     expect(projectInputSchema.safeParse(base).success).toBe(true);
