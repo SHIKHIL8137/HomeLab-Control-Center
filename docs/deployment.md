@@ -97,6 +97,8 @@ It prints results in groups and exits non-zero on any failure. It never starts a
 
 ## Deploying (after approval)
 
+Once the one-time setup in [cicd.md](cicd.md) is done, merging to `main` deploys automatically (backup, health checks, automatic rollback). The manual steps below are the first-time procedure and the fallback.
+
 1. Push to a **private** repository (done separately, with approval).
 2. On the server, clone into `/srv/projects/homelab-control-center` (verify it does not exist first).
 3. Run `docs/ubuntu-preflight.md`, then create the data and probe directories and the secrets (`scripts/provision-secrets.sh`). Back up what the backup document lists before the first deployment.
