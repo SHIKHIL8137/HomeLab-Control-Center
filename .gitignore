@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+*.log
+data/
+*.db
+*.db-wal
+*.db-shm
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+.DS_Store
+*.local

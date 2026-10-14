@@ -1,0 +1,36 @@
+# HomeLab Control Center. Not deployed anywhere yet; see docs/deployment.md before using on the server.
+# Run from the repository root:  docker compose -f deploy/compose.yaml up --build
+name: homelab-control-center
+
+services:
+  hlcc:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: homelab-control-center:local
+    restart: unless-stopped
+    environment:
+      HLCC_MODE: ${HLCC_MODE:-mock}
+      HLCC_COOKIE_SECURE: ${HLCC_COOKIE_SECURE:-false}
+      HLCC_TRUST_PROXY: ${HLCC_TRUST_PROXY:-false}
+      HLCC_POLL_INTERVAL_MS: ${HLCC_POLL_INTERVAL_MS:-15000}
+      HLCC_RETENTION_HOURS: ${HLCC_RETENTION_HOURS:-48}
+      HLCC_ALLOWED_ORIGINS: ${HLCC_ALLOWED_ORIGINS:-}
+      HLCC_SETUP_TOKEN: ${HLCC_SETUP_TOKEN:-}
+    ports:
+      # Loopback only. Remote access goes through an approved tunnel or Tailscale, never a public port.
+      - '127.0.0.1:${HLCC_PORT:-8787}:8787'
+    volumes:
+      # Persistent state lives outside the container and outside the release directory.
+      - ${HLCC_DATA_PATH:-./data}:/data
+    mem_limit: 256m
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    networks: [hlcc-internal]
+    # No Docker socket is mounted. Live Docker access arrives with the Phase 3 restricted helper.
+
+networks:
+  hlcc-internal:
+    driver: bridge
