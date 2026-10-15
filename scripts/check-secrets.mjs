@@ -24,6 +24,7 @@ const PATTERNS = [
   [/\bgh[pousr]_[A-Za-z0-9]{30,}\b/, 'GitHub token'],
   [/\bAKIA[0-9A-Z]{16}\b/, 'AWS access key id'],
   [/\bsk_(live|test)_[A-Za-z0-9]{16,}\b/, 'payment secret key'],
+  [/\btskey-[a-z]+-[A-Za-z0-9]{8,}/, 'Tailscale auth key or OAuth client secret'],
   [/\beyJ[A-Za-z0-9_-]{30,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/, 'JWT / tunnel token'],
   [/\b[a-z][a-z0-9+.-]*:\/\/[^\s/@:]+:[^\s/@]{3,}@[^\s/]+/i, 'credentials inside a URL'],
 ];
