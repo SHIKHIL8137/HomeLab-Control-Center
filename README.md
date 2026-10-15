@@ -62,7 +62,7 @@ migrations/      numbered SQL migrations, applied once each
 apps/docker-proxy  Read-only, allowlisting proxy in front of the Docker socket (no dependencies)
 deploy/          Dockerfile (api and proxy images) and compose.yaml, built and run locally, not on the server
 docs/            architecture, security, local development, deployment, cicd, ubuntu-preflight, backup, operations
-scripts/         check-secrets.mjs, preflight.mjs, ubuntu-preflight.sh, provision-secrets.sh, hlcc-deploy.sh
+scripts/         check-secrets.mjs, preflight.mjs, ubuntu-preflight.sh, provision-secrets.sh, hlcc-deploy.sh, ci-remote.sh, ci-known-hosts.sh
 ```
 
 `apps/worker` from the original plan is intentionally absent: nothing privileged exists yet. The only component that touches Docker is the read-only proxy; a deployment helper arrives with Phase 6 and needs its own approval.

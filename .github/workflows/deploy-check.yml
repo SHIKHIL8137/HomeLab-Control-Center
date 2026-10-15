@@ -1,0 +1,50 @@
+name: Deploy check (read-only)
+
+# Manual, read-only: joins the tailnet, verifies the server's SSH host key strictly, and runs the
+# server-resident `check` command. It cannot deploy: scripts/ci-remote.sh check sends only the word
+# "check" and no archive. Use it to validate the whole path (secrets, Tailscale, host key, forced
+# command, source address) before the first real deployment. See docs/cicd.md.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    # The real protection is on the `production` environment in GitHub: restrict its deployment
+    # branches to `main` and require a reviewer. This condition is a second, in-file guard.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check that the Tailscale secrets exist (names only)
+        env:
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+        run: |
+          missing=""
+          for n in TS_OAUTH_CLIENT_ID TS_OAUTH_SECRET; do
+            [ -n "${!n:-}" ] || missing="$missing $n"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing or empty Actions secrets:$missing (the Tailscale step would fail with 'OAuth identity empty')"
+            exit 1
+          fi
+      - name: Join the tailnet (ephemeral, tag:ci)
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+      - name: Run the read-only server check
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOMESERVER_HOST: ${{ secrets.HOMESERVER_HOST }}
+          HOMESERVER_HOST_KEY: ${{ secrets.HOMESERVER_HOST_KEY }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: scripts/ci-remote.sh check

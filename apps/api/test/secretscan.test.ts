@@ -93,6 +93,14 @@ describe('secret scanner: other rules', () => {
       1,
     );
     expect(scan({ 'a.txt': 'AKIAABCDEFGHIJKLMNOP\n' }).status).toBe(1);
+    // A Tailscale OAuth client secret pasted into a tracked file (even an example file) is caught,
+    // and the report names the file, never the value.
+    const ts = scan({
+      '.env.example': `X=tskey-client-k1B2c3D4e5F6CNTRL-${'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6'}\n`,
+    });
+    expect(ts.status).toBe(1);
+    expect(ts.out).toMatch(/\.env\.example: looks like a Tailscale/);
+    expect(ts.out).not.toContain('a1B2c3D4e5F6g7H8');
     expect(scan({ 'a.txt': 'mongodb://admin:hunter22@db:27017/app\n' }).status).toBe(1);
     expect(scan({ 'a.txt': 'https://example.com/path\n' }).status).toBe(0);
   });
